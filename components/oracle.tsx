@@ -11,19 +11,36 @@ export function effect(kind='tap'){
  }catch{}
 }
 const lines:Record<string,string[]>={
- lobby:['Welcome, treasure seekers. Who brought their poker face?','Gather your friends. The vault can wait.'],
- claim:['Your gems, your secret. Make your story convincing.','A little confidence goes a long way in this temple.'],
- judge:['Trust your instincts. Or question absolutely everything.','That claim sounds bold. Is it too bold?'],
- reveal:['The vault has spoken. How good was your poker face?','Some legends are built on very convincing lies.'],
- finished:['A crown for the cleverest. Shall we tempt fate again?','The treasure has a new keeper. Rematch, anyone?']
+ lobby:["All right! Who's got the best poker face?","Come on in. Let's see what you've got.","Oh, this should be good. Ready?"],
+ claim:["Okay... sell me that story.","Six gems? Bold. I like it.","Go on. Make them believe you.","Ten seconds. Trust that poker face!"],
+ judge:["Hmm... would you trust that face?","Oh, really? I'm not so sure.","Your call. Honest... or bluffing?","Something feels fishy. What do you think?"],
+ reveal:["Oh! Now that's a reveal.","Ha! Somebody's poker face needs work.","Well played. I did not see that coming.","And there it is! The truth comes out."],
+ finished:["What a game! Take a bow.","Now that's how you win a vault. Again?","We have a champion! Fancy a rematch?"]
 };
+function bestVoice(voices:SpeechSynthesisVoice[]){
+ const english=voices.filter(v=>/^en([_-]|$)/i.test(v.lang));
+ const score=(v:SpeechSynthesisVoice)=>/natural|neural|premium|enhanced/i.test(v.name)?100:/Google (US|UK) English/i.test(v.name)?80:/Samantha|Ava|Serena|Daniel|Aria|Jenny/i.test(v.name)?60:v.default?20:0;
+ return english.sort((a,b)=>score(b)-score(a))[0];
+}
 export function Oracle({phase,round,sound,paused}:{phase:string;round:number;sound:boolean;paused:boolean}){
- const [beat,setBeat]=useState(0),[talking,setTalking]=useState(false);
- const text=(lines[phase]||lines.lobby)[(round+beat)%2];
- useEffect(()=>{setBeat(0);const timer=setInterval(()=>setBeat(n=>n+1),14000);return()=>clearInterval(timer);},[phase,round]);
- useEffect(()=>{if(paused)return;setTalking(true);let timer=setTimeout(()=>setTalking(false),4000);
- if(sound&&'speechSynthesis' in window){const speech=new SpeechSynthesisUtterance(text);speech.rate=.94;speech.pitch=.85;speech.volume=.8;speech.onend=()=>setTalking(false);speech.onerror=()=>setTalking(false);window.speechSynthesis.cancel();window.speechSynthesis.speak(speech);}
- return()=>{clearTimeout(timer);if('speechSynthesis' in window)window.speechSynthesis.cancel();};
- },[text,sound,paused]);
+ const [talking,setTalking]=useState(false);
+ const choices=lines[phase]||lines.lobby,text=choices[round%choices.length];
+ useEffect(()=>{
+  if(paused){setTalking(false);return;}
+  let disposed=false,started=false,timer:ReturnType<typeof setTimeout>|undefined;
+  const synth='speechSynthesis' in window?window.speechSynthesis:null;
+  const stop=()=>{if(!disposed)setTalking(false);};
+  function speak(){if(disposed||started||!synth)return;started=true;
+   const speech=new SpeechSynthesisUtterance(text),voice=bestVoice(synth.getVoices());
+   if(voice){speech.voice=voice;speech.lang=voice.lang;}else speech.lang='en-US';
+   // Let the chosen voice keep its natural register; short phrases carry the expression.
+   speech.rate=phase==='finished'?1.08:1.02;speech.pitch=1;speech.volume=.85;
+   speech.onstart=()=>{if(!disposed)setTalking(true);};speech.onend=stop;speech.onerror=stop;
+   synth.cancel();synth.speak(speech);
+  }
+  if(sound&&synth){if(synth.getVoices().length)speak();else{synth.addEventListener('voiceschanged',speak);timer=setTimeout(speak,500);}}
+  else{setTalking(true);timer=setTimeout(stop,2300);}
+  return()=>{disposed=true;clearTimeout(timer);synth?.removeEventListener('voiceschanged',speak);synth?.cancel();};
+ },[text,sound,paused,phase]);
  return <div className={'oracle '+(talking&&!paused?'speaking':'')}><div className="oracle-portrait"><Avatar value={1}/><span className="voice-bars" aria-hidden="true"><i/><i/><i/></span></div><div><strong>The Oracle</strong><p role="status">{text}</p></div></div>;
 }
