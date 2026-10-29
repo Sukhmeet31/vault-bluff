@@ -6,3 +6,5 @@ User-approved direction: ancient atmosphere, purple gems, custom player nickname
 - Add 12 original illustrated portraits to create/join forms, persist the last selection locally, and display the selected portrait in lobby, judging, reveals and leaderboard.
 - Replace modern vault illustration with ancient treasury artwork, purple amethyst gems, aged gold, stone panels and classical display typography. Keep mobile targets and reduced motion support.
 - Verify avatar persistence and validation, scoring regression tests, HTTP create/join/sync, type checks, production build, and phone browser appearance. Commit feature and theme separately, push and deploy to the existing public Site.
+
+Verification: 14 automated tests pass, TypeScript and production build pass. Mobile create flow verified with custom nickname and Jackal portrait. Independent review found no important issues. Both implementation commits omit co-author trailers.
